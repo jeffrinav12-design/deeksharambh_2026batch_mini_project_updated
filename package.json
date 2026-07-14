@@ -1,0 +1,16 @@
+{
+  "name": "deeksharambh-bridge-course-management-system",
+  "version": "1.0.0",
+  "description": "Deeksharambh Bridge Course Management System for Sankara College of Science and Commerce",
+  "scripts": {
+    "install-all": "npm install && npm install --prefix server && npm install --prefix client",
+    "server": "npm run dev --prefix server",
+    "client": "npm run dev --prefix client",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "start": "concurrently \"npm run server\" \"npm run client\"",
+    "seed": "node server/scripts/seed.js"
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

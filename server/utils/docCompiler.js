@@ -1,0 +1,212 @@
+import PDFDocument from 'pdfkit';
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType } from 'docx';
+
+// Helper for letterhead in PDF
+function drawLetterhead(doc) {
+  doc.font('Times-Bold').fontSize(14).text("SANKARA COLLEGE OF SCIENCE AND COMMERCE (Autonomous)", { align: 'center' });
+  doc.font('Times-Roman').fontSize(9)
+     .text("Affiliated to Bharathiar University, Coimbatore | Approved by AICTE, New Delhi", { align: 'center' })
+     .text("Re-Accredited by NAAC with A+ Grade (Cycle II) | An ISO 9001:2015 Certified Institution", { align: 'center' })
+     .text("Saravanampatty, Coimbatore, Tamilnadu | Pincode: 641035", { align: 'center' })
+     .text("E-Mail: info@sankara.ac.in | Web: www.sankara.ac.in", { align: 'center' });
+  
+  doc.moveDown(0.5);
+  doc.moveTo(50, doc.y).lineTo(562, doc.y).strokeColor('#1a237e').strokeWidth(1.5).stroke();
+  doc.moveDown(1);
+}
+
+// Compile PDF using pdfkit
+export function compilePdf(templateName, fieldValues) {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ margin: 50 });
+      const buffers = [];
+      doc.on('data', buffers.push.bind(buffers));
+      doc.on('end', () => {
+        resolve(Buffer.concat(buffers));
+      });
+
+      drawLetterhead(doc);
+
+      // Title
+      doc.font('Times-Bold').fontSize(14).text(templateName.toUpperCase(), { align: 'center' });
+      doc.moveDown(1.5);
+
+      // Field Values Table
+      doc.font('Times-Bold').fontSize(11).text("DOCUMENT METADATA & PARAMETERS", 50, doc.y);
+      doc.moveDown(0.5);
+
+      const tableTop = doc.y;
+      doc.fontSize(10);
+      
+      // Draw Table Headers
+      doc.font('Times-Bold');
+      doc.text("Field Name", 60, tableTop);
+      doc.text("Value", 220, tableTop);
+      doc.moveTo(50, tableTop + 14).lineTo(562, tableTop + 14).strokeColor('#cbd5e1').strokeWidth(1).stroke();
+      
+      let currentY = tableTop + 22;
+      doc.font('Times-Roman');
+
+      // Loop through key-values
+      for (const [key, value] of Object.entries(fieldValues)) {
+        if (currentY > 680) {
+          doc.addPage();
+          drawLetterhead(doc);
+          doc.font('Times-Bold').fontSize(10);
+          doc.text("Field Name", 60, doc.y);
+          doc.text("Value", 220, doc.y);
+          doc.moveTo(50, doc.y + 14).lineTo(562, doc.y + 14).stroke();
+          currentY = doc.y + 22;
+          doc.font('Times-Roman');
+        }
+
+        // Format key to start-case (e.g. "academicYear" -> "Academic Year")
+        const label = key
+          .replace(/([A-Z])/g, ' $1')
+          .replace(/^./, str => str.toUpperCase());
+
+        doc.font('Times-Bold').text(label, 60, currentY);
+        doc.font('Times-Roman').text(String(value || '-'), 220, currentY, { width: 320 });
+        
+        // Calculate dynamic height based on text length
+        const textHeight = doc.heightOfString(String(value || '-'), { width: 320 });
+        const rowHeight = Math.max(textHeight, 14) + 8;
+        
+        doc.moveTo(50, currentY + rowHeight - 4).lineTo(562, currentY + rowHeight - 4).strokeColor('#f1f5f9').stroke();
+        currentY += rowHeight;
+      }
+
+      // Signatures
+      doc.moveDown(3);
+      if (doc.y > 650) {
+        doc.addPage();
+        drawLetterhead(doc);
+      }
+      const sigY = doc.y;
+      doc.font('Times-Bold').fontSize(10).text("Staff In-charge", 60, sigY);
+      doc.text("HOD / Principal", 420, sigY);
+
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+// Compile DOCX using docx
+export function compileDocx(templateName, fieldValues) {
+  return new Promise((resolve, reject) => {
+    try {
+      // Build Table Rows
+      const tableRows = [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 30, type: WidthType.PERCENTAGE },
+              children: [new Paragraph({ children: [new TextRun({ text: "Field Name", bold: true, size: 20 })] })],
+              backgroundColor: "f1f5f9"
+            }),
+            new TableCell({
+              width: { size: 70, type: WidthType.PERCENTAGE },
+              children: [new Paragraph({ children: [new TextRun({ text: "Value", bold: true, size: 20 })] })],
+              backgroundColor: "f1f5f9"
+            })
+          ]
+        })
+      ];
+
+      for (const [key, value] of Object.entries(fieldValues)) {
+        const label = key
+          .replace(/([A-Z])/g, ' $1')
+          .replace(/^./, str => str.toUpperCase());
+
+        tableRows.push(
+          new TableRow({
+            children: [
+              new TableCell({
+                children: [new Paragraph({ children: [new TextRun({ text: label, bold: true, size: 18 })] })]
+              }),
+              new TableCell({
+                children: [new Paragraph({ children: [new TextRun({ text: String(value || '-'), size: 18 })] })]
+              })
+            ]
+          })
+        );
+      }
+
+      const doc = new Document({
+        sections: [
+          {
+            properties: {},
+            children: [
+              // Letterhead
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({ text: "SANKARA COLLEGE OF SCIENCE AND COMMERCE", bold: true, size: 28, color: "1a237e" }),
+                  new TextRun({ text: "\n(Autonomous)", bold: true, size: 20, color: "1a237e" })
+                ]
+              }),
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({ text: "Affiliated to Bharathiar University, Coimbatore | Approved by AICTE, New Delhi\n", size: 16 }),
+                  new TextRun({ text: "Re-Accredited by NAAC with A+ Grade | An ISO 9001:2015 Certified Institution\n", size: 16 }),
+                  new TextRun({ text: "Saravanampatty, Coimbatore, Tamilnadu - 641035", size: 16 })
+                ]
+              }),
+              new Paragraph({ children: [new TextRun({ text: "__________________________________________________________________________", color: "1a237e" })] }),
+              new Paragraph({ text: "\n" }),
+              
+              // Document Title
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({ text: templateName.toUpperCase(), bold: true, size: 24, underline: {} })
+                ]
+              }),
+              new Paragraph({ text: "\n" }),
+
+              // Meta table
+              new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                rows: tableRows
+              }),
+              new Paragraph({ text: "\n\n\n\n" }),
+
+              // Signatures
+              new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                borders: {
+                  top: { style: BorderStyle.NONE },
+                  bottom: { style: BorderStyle.NONE },
+                  left: { style: BorderStyle.NONE },
+                  right: { style: BorderStyle.NONE },
+                  insideHorizontal: { style: BorderStyle.NONE },
+                  insideVertical: { style: BorderStyle.NONE }
+                },
+                rows: [
+                  new TableRow({
+                    children: [
+                      new TableCell({
+                        children: [new Paragraph({ children: [new TextRun({ text: "Staff In-charge", bold: true, size: 20 })] })]
+                      }),
+                      new TableCell({
+                        children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "HOD / Principal", bold: true, size: 20 })] })]
+                      })
+                    ]
+                  })
+                ]
+              })
+            ]
+          }
+        ]
+      });
+
+      Packer.toBuffer(doc).then(resolve).catch(reject);
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
