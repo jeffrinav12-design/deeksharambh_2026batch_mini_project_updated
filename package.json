@@ -2,6 +2,8 @@
   "name": "deeksharambh-bridge-course-management-system",
   "version": "1.0.0",
   "description": "Deeksharambh Bridge Course Management System for Sankara College of Science and Commerce",
+  "main": "api/index.js",
+  "type": "module",
   "scripts": {
     "install-all": "npm install && npm install --prefix server && npm install --prefix client",
     "server": "npm run dev --prefix server",
